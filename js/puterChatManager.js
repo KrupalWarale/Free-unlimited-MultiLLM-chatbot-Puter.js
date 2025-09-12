@@ -12,9 +12,15 @@ class PuterChatManager {
      * Send message to all specified models
      */
     async sendMessageToAllModels(message, images = [], modelIds = []) {
+        // Filter out disabled models
+        const enabledModelIds = modelIds.filter(modelId => {
+            return puterUIManager.isModelEnabled(modelId);
+        });
 
-        // Send to each model concurrently
-        const promises = modelIds.map(modelId => this.sendMessageToModel(message, images, modelId));
+        console.log(`Sending to ${enabledModelIds.length} enabled models out of ${modelIds.length} total models`);
+
+        // Send to each enabled model concurrently
+        const promises = enabledModelIds.map(modelId => this.sendMessageToModel(message, images, modelId));
         
         try {
             await Promise.allSettled(promises);

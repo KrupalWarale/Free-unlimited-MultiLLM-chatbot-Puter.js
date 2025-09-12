@@ -25,6 +25,7 @@ class PuterUIManager {
         this.uploadedImages = [];
         this.isProcessing = false;
         this.chatWindows = new Map(); // Store chat window elements
+        this.modelStates = new Map(); // Store model enabled/disabled states
 
         // Add property to track single chat container
         this.singleChatContainer = null;
@@ -43,12 +44,16 @@ class PuterUIManager {
         try {
             this.bindElements();
             this.bindEvents();
+            this.bindMobileEvents();
             this.updateUI();
             this.updateSendButtonState();
             this.showWelcomeMessage();
 
             // Initialize chat windows
             this.initializeChatWindows();
+
+            // Initialize responsive grid
+            this.initResponsiveGrid();
 
             // Initialize single chat manager
             if (window.puterSingleChatManager) {
@@ -68,6 +73,10 @@ class PuterUIManager {
      */
     initializeChatWindows() {
         this.generateAllChatWindows();
+        // Generate settings model toggles after a delay to ensure chat windows are ready
+        setTimeout(() => {
+            this.generateSettingsModelToggles();
+        }, 1000);
     }
 
     /**
@@ -78,11 +87,24 @@ class PuterUIManager {
             this.singleChatContainer = document.querySelector('.single-chat-container');
         }
         if (this.singleChatContainer) {
-            this.singleChatContainer.style.display = 'block';
+            this.singleChatContainer.style.display = 'flex';
         }
-        const chatGrid = document.querySelector('.chat-grid');
-        if (chatGrid) {
-            chatGrid.style.display = 'none';
+        const chatGridContainer = document.querySelector('.chat-grid-container');
+        if (chatGridContainer) {
+            chatGridContainer.style.display = 'none';
+        }
+    }
+
+    /**
+     * Hide single chat interface
+     */
+    hideSingleChat() {
+        if (this.singleChatContainer) {
+            this.singleChatContainer.style.display = 'none';
+        }
+        const chatGridContainer = document.querySelector('.chat-grid-container');
+        if (chatGridContainer) {
+            chatGridContainer.style.display = 'block';
         }
     }
 
@@ -90,9 +112,9 @@ class PuterUIManager {
      * Hide all multi-chat windows
      */
     hideAllChatWindows() {
-        const chatGrid = document.querySelector('.chat-grid');
-        if (chatGrid) {
-            chatGrid.style.display = 'none';
+        const chatGridContainer = document.querySelector('.chat-grid-container');
+        if (chatGridContainer) {
+            chatGridContainer.style.display = 'none';
         }
     }
 
@@ -127,10 +149,21 @@ class PuterUIManager {
         chatGrid.innerHTML = '';
         this.chatWindows.clear();
 
+        // Calculate grid layout for 35 models - use 3 columns for optimal display
+        const modelCount = allModels.length;
+        const cols = 3; // Fixed layout for 35 models
+        
+        // Set the grid layout with important to override CSS
+        chatGrid.style.setProperty('grid-template-columns', `repeat(${cols}, 1fr)`, 'important');
+        chatGrid.style.setProperty('grid-template-rows', 'auto', 'important');
+
         // Create chat windows for all models
         allModels.forEach(modelId => {
             const model = puterModelCapabilities.getModel(modelId);
             if (!model) return;
+
+            // Initialize model state as enabled by default
+            this.modelStates.set(modelId, true);
 
             const chatWindow = document.createElement('div');
             chatWindow.className = 'chat-window';
@@ -140,9 +173,16 @@ class PuterUIManager {
                 <div class="chat-header">
                     <div class="model-info">
                         <div class="model-icon">${this.getModelIcon(modelId)}</div>
-                        <span class="model-name">${model.name}</span>
+                        <span class="model-name" title="${model.name}">${model.name}</span>
                     </div>
-
+                    <div class="model-controls">
+                        <button class="model-toggle-btn" data-model="${modelId}" title="Toggle model output">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="chat-messages" id="messages-${modelId}">
                     <div class="placeholder-text">Ready to chat with ${model.name}</div>
@@ -154,6 +194,13 @@ class PuterUIManager {
             // Store reference to the messages container
             const messagesContainer = chatWindow.querySelector('.chat-messages');
             this.chatWindows.set(modelId, messagesContainer);
+            
+            // Add toggle button event listener
+            const toggleBtn = chatWindow.querySelector('.model-toggle-btn');
+            toggleBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleModelState(modelId);
+            });
         });
         } catch (error) {
             console.error('❌ Error generating chat windows:', error);
@@ -186,6 +233,19 @@ class PuterUIManager {
         this.elements.modelItems = document.querySelectorAll('.model-item');
         this.elements.sidebar = document.querySelector('.sidebar');
         
+        // Setup mobile sidebar functionality
+        this.mobileBreakpoint = 576;
+        this.isMobileView = window.innerWidth <= this.mobileBreakpoint;
+        
+        // Bind mobile events
+        this.bindMobileEvents();
+        
+        // Initialize responsive grid
+        this.initResponsiveGrid();
+        
+        // Set up resize listener
+        this.setupResponsiveHandlers();
+
         // Initialize chat windows
         this.activeModels.forEach(modelId => {
             const messagesContainer = document.getElementById(`messages-${modelId}`);
@@ -257,9 +317,7 @@ class PuterUIManager {
         this.elements.toggleSidebar.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (this.elements.sidebar) {
-                this.elements.sidebar.classList.toggle('collapsed');
-            }
+            this.toggleSidebar();
         });
 
         // Close sidebar button
@@ -299,6 +357,188 @@ class PuterUIManager {
             temperatureSlider.addEventListener('input', (e) => {
                 temperatureValue.textContent = e.target.value;
             });
+        }
+    }
+
+    /**
+     * Toggle model enabled/disabled state
+     */
+    toggleModelState(modelId) {
+        const isEnabled = this.modelStates.get(modelId);
+        const newState = !isEnabled;
+        this.modelStates.set(modelId, newState);
+        
+        // Update visual state
+        const chatWindow = document.querySelector(`[data-model="${modelId}"]`);
+        const toggleBtn = chatWindow.querySelector('.model-toggle-btn');
+        
+        if (newState) {
+            chatWindow.classList.remove('disabled');
+            toggleBtn.classList.remove('disabled');
+            toggleBtn.title = 'Disable model output';
+        } else {
+            chatWindow.classList.add('disabled');
+            toggleBtn.classList.add('disabled');
+            toggleBtn.title = 'Enable model output';
+            
+            // Clear any ongoing typing indicators
+            this.removeTypingIndicator(modelId);
+        }
+        
+        // Update settings panel if it exists
+        this.updateSettingsToggle(modelId, newState);
+    }
+
+    /**
+     * Check if model is enabled
+     */
+    isModelEnabled(modelId) {
+        return this.modelStates.get(modelId) !== false;
+    }
+
+    /**
+     * Update settings toggle state
+     */
+    updateSettingsToggle(modelId, isEnabled) {
+        const settingsToggle = document.querySelector(`#settings-toggle-${modelId}`);
+        if (settingsToggle) {
+            settingsToggle.checked = isEnabled;
+        }
+    }
+
+    /**
+     * Generate company-grouped settings panel
+     */
+    generateSettingsModelToggles() {
+        const settingsContent = document.querySelector('.sidebar-content');
+        if (!settingsContent) return;
+
+        // Check if model toggles section already exists
+        let modelTogglesSection = settingsContent.querySelector('.model-toggles-section');
+        if (modelTogglesSection) {
+            modelTogglesSection.remove();
+        }
+
+        // Create model toggles section
+        modelTogglesSection = document.createElement('div');
+        modelTogglesSection.className = 'model-toggles-section';
+        modelTogglesSection.innerHTML = '<h4>Model Output Control</h4>';
+
+        // Get all chat models and group by company
+        const allModels = puterChatManager.getAllChatModels();
+        const companiesMap = this.groupModelsByCompany(allModels);
+
+        // Generate company groups
+        for (const [company, models] of companiesMap.entries()) {
+            const companyGroup = document.createElement('div');
+            companyGroup.className = 'company-group';
+            
+            companyGroup.innerHTML = `
+                <div class="company-header">
+                    <h5>${company}</h5>
+                </div>
+                <div class="company-models">
+                    ${models.map(modelId => {
+                        const model = puterModelCapabilities.getModel(modelId);
+                        const isEnabled = this.isModelEnabled(modelId);
+                        return `
+                            <div class="model-toggle-item">
+                                <label class="toggle-label" for="settings-toggle-${modelId}">
+                                    <span class="model-name">${model.name}</span>
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="settings-toggle-${modelId}" ${isEnabled ? 'checked' : ''}>
+                                        <span class="toggle-slider"></span>
+                                    </div>
+                                </label>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            modelTogglesSection.appendChild(companyGroup);
+        }
+
+        // Add event listeners for settings toggles
+        setTimeout(() => {
+            modelTogglesSection.querySelectorAll('input[type="checkbox"]').forEach(toggle => {
+                toggle.addEventListener('change', (e) => {
+                    const modelId = e.target.id.replace('settings-toggle-', '');
+                    const isEnabled = e.target.checked;
+                    this.modelStates.set(modelId, isEnabled);
+                    this.updateChatWindowToggle(modelId, isEnabled);
+                });
+            });
+        }, 100);
+
+        // Add to settings content
+        settingsContent.appendChild(modelTogglesSection);
+    }
+
+    /**
+     * Group models by company name
+     */
+    groupModelsByCompany(modelIds) {
+        const companiesMap = new Map();
+
+        modelIds.forEach(modelId => {
+            const company = this.getModelCompany(modelId);
+            if (!companiesMap.has(company)) {
+                companiesMap.set(company, []);
+            }
+            companiesMap.get(company).push(modelId);
+        });
+
+        // Sort companies alphabetically
+        return new Map([...companiesMap.entries()].sort());
+    }
+
+    /**
+     * Get company name for a model
+     */
+    getModelCompany(modelId) {
+        // Map model IDs to company names
+        if (modelId.startsWith('gpt-') || modelId.startsWith('o1') || modelId.startsWith('o3') || modelId.startsWith('o4')) {
+            return 'OpenAI';
+        } else if (modelId.startsWith('claude')) {
+            return 'Anthropic';
+        } else if (modelId.startsWith('gemini')) {
+            return 'Google';
+        } else if (modelId.startsWith('deepseek')) {
+            return 'DeepSeek';
+        } else if (modelId.startsWith('meta-llama')) {
+            return 'Meta';
+        } else if (modelId.startsWith('mistral') || modelId.startsWith('pixtral') || modelId.startsWith('codestral')) {
+            return 'Mistral';
+        } else if (modelId.startsWith('grok')) {
+            return 'xAI';
+        } else if (modelId.includes('gemma')) {
+            return 'Google';
+        } else {
+            return 'Other';
+        }
+    }
+
+    /**
+     * Update chat window toggle state from settings
+     */
+    updateChatWindowToggle(modelId, isEnabled) {
+        const chatWindow = document.querySelector(`[data-model="${modelId}"]`);
+        const toggleBtn = chatWindow?.querySelector('.model-toggle-btn');
+        
+        if (chatWindow && toggleBtn) {
+            if (isEnabled) {
+                chatWindow.classList.remove('disabled');
+                toggleBtn.classList.remove('disabled');
+                toggleBtn.title = 'Disable model output';
+            } else {
+                chatWindow.classList.add('disabled');
+                toggleBtn.classList.add('disabled');
+                toggleBtn.title = 'Enable model output';
+                
+                // Clear any ongoing typing indicators
+                this.removeTypingIndicator(modelId);
+            }
         }
     }
 
@@ -402,6 +642,36 @@ class PuterUIManager {
     }
 
     /**
+     * Show error message
+     */
+    showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            z-index: 1000;
+            font-size: 14px;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        `;
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
+
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.style.opacity = '0';
+                errorDiv.style.transform = 'translateX(100%)';
+                setTimeout(() => errorDiv.remove(), 300);
+            }
+        }, 3000);
+    }
+
+    /**
      * Show temporary notification
      */
     showNotification(message) {
@@ -492,6 +762,10 @@ class PuterUIManager {
         } finally {
             this.isProcessing = false;
             this.setSendButtonLoading(false);
+            // Ensure button state is properly updated after sending
+            setTimeout(() => {
+                this.updateSendButtonState();
+            }, 100);
         }
     }
 
@@ -535,121 +809,68 @@ class PuterUIManager {
     }
 
     /**
-     * Create dynamic grid for all models
-     */
-    createAllModelsGrid(allModels) {
-        const chatGrid = document.querySelector('.chat-grid');
-        if (!chatGrid) return;
-
-        // Clear existing windows
-        chatGrid.innerHTML = '';
-        this.chatWindows.clear();
-
-        // Calculate grid layout based on number of models
-        const modelCount = allModels.length;
-        let cols, rows;
-
-        if (modelCount <= 3) {
-            cols = 2; rows = 2;
-        } else if (modelCount <= 6) {
-            cols = 3; rows = 2;
-        } else if (modelCount <= 9) {
-            cols = 3; rows = 3;
-        } else {
-            cols = 4; rows = Math.ceil(modelCount / 4);
-        }
-
-        chatGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-        chatGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-
-        // Create chat windows for all models
-        allModels.forEach(modelId => {
-            const model = puterModelCapabilities.getModel(modelId);
-            if (!model) return;
-
-            const chatWindow = document.createElement('div');
-            chatWindow.className = 'chat-window';
-            chatWindow.setAttribute('data-model', modelId);
-
-            chatWindow.innerHTML = `
-                <div class="chat-header">
-                    <div class="model-info">
-                        <div class="model-icon">${this.getModelIcon(modelId)}</div>
-                        <span class="model-name">${model.name}</span>
-                    </div>
-
-                </div>
-                <div class="chat-messages" id="messages-${modelId}">
-                    <div class="placeholder-text">Ready to chat with ${model.name}</div>
-                </div>
-            `;
-
-            chatGrid.appendChild(chatWindow);
-            
-            // Store reference to the messages container
-            const messagesContainer = chatWindow.querySelector('.chat-messages');
-            this.chatWindows.set(modelId, messagesContainer);
-        });
-    }
-
-    /**
      * Get icon for model
      */
     getModelIcon(modelId) {
-        const iconMap = {
-            // GPT Models
-            'gpt-4o': '🤖',
-            'gpt-4o-mini': '⚡',
-            'gpt-4': '👁️',
-            'gpt-4-nano': '🔹',
-            'gpt-4.1': '🔷',
-            'gpt-4.1-mini': '💠',
-            'gpt-4.1-nano': '🔸',
-            'gpt-4.5-preview': '🔮',
-            'gpt-5': '🚀',
-            'gpt-5-mini': '✨',
-            'gpt-5-nano': '💫',
-            'gpt-5-chat-latest': '🌟',
+        const logoMap = {
+            // GPT Models (ChatGPT logo)
+            'gpt-4o': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-4o-mini': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-4': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-4-nano': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-4.1': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-4.1-mini': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-4.1-nano': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-4.5-preview': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-5': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-5-mini': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-5-nano': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'gpt-5-chat-latest': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
             
-            // O Models
-            'o1': '⭕',
-            'o1-mini': '🔵',
-            'o1-pro': '🟢',
-            'o3': '🟣',
-            'o3-mini': '🟪',
-            'o4-mini': '🟦',
+            // O Models (ChatGPT logo)
+            'o1': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'o1-mini': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'o1-pro': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'o3': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'o3-mini': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
+            'o4-mini': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png',
             
             // Claude Models
-            'claude': '🟠',
-            'claude-3-5-sonnet': '🟠',
-            'claude-3-7-sonnet': '🟡',
-            'claude-sonnet-4': '🟠',
-            'claude-opus-4': '🔶',
+            'claude': 'http://res.cloudinary.com/dokduyqpk/image/upload/v1747139256/peueeehosysccnmwsszx.png',
+            'claude-3-5-sonnet': 'http://res.cloudinary.com/dokduyqpk/image/upload/v1747139256/peueeehosysccnmwsszx.png',
+            'claude-3-7-sonnet': 'http://res.cloudinary.com/dokduyqpk/image/upload/v1747139256/peueeehosysccnmwsszx.png',
+            'claude-sonnet-4': 'http://res.cloudinary.com/dokduyqpk/image/upload/v1747139256/peueeehosysccnmwsszx.png',
+            'claude-opus-4': 'http://res.cloudinary.com/dokduyqpk/image/upload/v1747139256/peueeehosysccnmwsszx.png',
             
             // Gemini Models
-            'gemini-2.0-flash': '🔷',
-            'gemini-1.5-flash': '💎',
+            'gemini-2.0-flash': 'https://external-preview.redd.it/google-gemini-app-released-on-play-store-v0-PaHuHdLaLzlIhGZix5lxb_si2F66Ln2KIdgYdyK_aBc.jpg?auto=webp&s=4e6eaebbfaf875e1920d792b4a6cd596b85b3db9',
+            'gemini-1.5-flash': 'https://external-preview.redd.it/google-gemini-app-released-on-play-store-v0-PaHuHdLaLzlIhGZix5lxb_si2F66Ln2KIdgYdyK_aBc.jpg?auto=webp&s=4e6eaebbfaf875e1920d792b4a6cd596b85b3db9',
             
             // DeepSeek Models
-            'deepseek-chat': '🌀',
-            'deepseek-reasoner': '🧠',
+            'deepseek-chat': 'https://deepseek-espanol.chat/wp-content/uploads/2025/05/eepseek-espanol-logo.webp',
+            'deepseek-reasoner': 'https://deepseek-espanol.chat/wp-content/uploads/2025/05/eepseek-espanol-logo.webp',
             
             // Llama Models
-            'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo': '🦙',
-            'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo': '🦙',
-            'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo': '🦙',
+            'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo': 'https://cdn.prod.website-files.com/63071746623d65622587f8b8/63071746623d65893787f9c1_new%20logo%20footer.svg',
+            'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo': 'https://cdn.prod.website-files.com/63071746623d65622587f8b8/63071746623d65893787f9c1_new%20logo%20footer.svg',
+            'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo': 'https://cdn.prod.website-files.com/63071746623d65622587f8b8/63071746623d65893787f9c1_new%20logo%20footer.svg',
             
             // Mistral Models
-            'mistral-large-latest': '🔥',
-            'pixtral-large-latest': '🎨',
-            'codestral-latest': '💻',
+            'mistral-large-latest': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Mistral_AI_logo_%282025%E2%80%93%29.svg/1200px-Mistral_AI_logo_%282025%E2%80%93%29.svg.png',
+            'pixtral-large-latest': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Mistral_AI_logo_%282025%E2%80%93%29.svg/1200px-Mistral_AI_logo_%282025%E2%80%93%29.svg.png',
+            'codestral-latest': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Mistral_AI_logo_%282025%E2%80%93%29.svg/1200px-Mistral_AI_logo_%282025%E2%80%93%29.svg.png',
             
             // Other Models
-            'grok-beta': '🌟',
-            'google/gemma-2-27b-it': '💠',
-            'dall-e-3': '🎨'
+            'grok-beta': 'https://www.nan.xyz/wp-content/uploads/grok-seeklogo-.svg',
+            'google/gemma-2-27b-it': 'https://custom.typingmind.com/assets/models/gemma.jpg',
+            'dall-e-3': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/250px-ChatGPT-Logo.svg.png'
         };
-        return iconMap[modelId] || '🤖';
+        
+        const logoUrl = logoMap[modelId];
+        if (logoUrl) {
+            return `<img src="${logoUrl}" alt="${modelId}" class="model-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';"><span class="fallback-icon" style="display:none;">🤖</span>`;
+        }
+        return '🤖';
     }
 
     /**
@@ -717,9 +938,13 @@ class PuterUIManager {
         const chatGridContainer = document.querySelector('.chat-grid-container');
         
         if (chatGrid && chatGridContainer) {
-            // Reset grid to show all models in 2-column layout
-            chatGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-            chatGrid.style.gridTemplateRows = 'auto';
+            // Calculate grid layout for 35 models - use 3 columns for optimal display
+            const modelCount = document.querySelectorAll('.chat-window').length;
+            const cols = 3; // Fixed layout for 35 models
+            
+            // Apply the calculated grid layout with important to override CSS
+            chatGrid.style.setProperty('grid-template-columns', `repeat(${cols}, 1fr)`, 'important');
+            chatGrid.style.setProperty('grid-template-rows', 'auto', 'important');
             
             // Show all chat windows and reset their heights
             document.querySelectorAll('.chat-window').forEach(window => {
@@ -741,8 +966,8 @@ class PuterUIManager {
         const chatGridContainer = document.querySelector('.chat-grid-container');
         
         if (chatGrid && chatGridContainer) {
-            chatGrid.style.gridTemplateColumns = '1fr';
-            chatGrid.style.gridTemplateRows = 'auto';
+            chatGrid.style.setProperty('grid-template-columns', '1fr', 'important');
+            chatGrid.style.setProperty('grid-template-rows', 'auto', 'important');
             
             // Hide all windows first
             document.querySelectorAll('.chat-window').forEach(window => {
@@ -792,12 +1017,224 @@ class PuterUIManager {
     }
 
     /**
+     * Update send button state
+     */
+    updateSendButtonState() {
+        if (!this.elements.sendButton) return;
+        
+        const hasText = this.elements.messageInput && this.elements.messageInput.value.trim().length > 0;
+        const hasImages = this.uploadedImages.length > 0;
+        const canSend = (hasText || hasImages) && !this.isProcessing;
+        
+        this.elements.sendButton.disabled = !canSend;
+        this.elements.sendButton.style.opacity = canSend ? '1' : '0.6';
+    }
+
+    /**
+     * Format message content
+     */
+    formatContent(content) {
+        if (!content) return '';
+        
+        // Escape HTML
+        content = content.replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+        
+        // Convert line breaks
+        content = content.replace(/\n/g, '<br>');
+        
+        return content;
+    }
+
+    /**
+     * Set send button loading state
+     */
+    setSendButtonLoading(loading) {
+        if (!this.elements.sendButton) return;
+        
+        if (loading) {
+            this.elements.sendButton.textContent = 'Sending...';
+            this.elements.sendButton.disabled = true;
+        } else {
+            this.elements.sendButton.textContent = 'Send';
+            this.updateSendButtonState();
+        }
+    }
+
+    /**
+     * Show welcome message
+     */
+    showWelcomeMessage() {
+        console.log('🎉 Welcome to Puter AI Chatbot!');
+    }
+
+    // =============================================
+    // MOBILE AND RESPONSIVE FUNCTIONALITY
+    // =============================================
+
+    /**
+     * Bind mobile-specific event listeners
+     */
+    bindMobileEvents() {
+        // Mobile menu toggle button - works same as sidebar toggle
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.querySelector('.sidebar');
+        
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSidebar();
+            });
+        }
+        
+        // Close sidebar when clicking on model items only on very small screens
+        this.elements.modelItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // Only auto-collapse on mobile when sidebar is expanded
+                if (window.innerWidth <= 575 && !sidebar?.classList.contains('collapsed')) {
+                    setTimeout(() => this.collapseSidebar(), 200);
+                }
+            });
+        });
+    }
+
+    /**
+     * Initialize responsive grid handling
+     */
+    initResponsiveGrid() {
+        this.updateGridLayout();
+    }
+
+    /**
+     * Setup responsive window resize handlers
+     */
+    setupResponsiveHandlers() {
+        let resizeTimeout;
+        
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                this.handleResize();
+            }, 100);
+        });
+        
+        // Initial check
+        this.handleResize();
+    }
+
+    /**
+     * Handle window resize events
+     */
+    handleResize() {
+        const wasInMobileView = this.isMobileView;
+        this.isMobileView = window.innerWidth <= this.mobileBreakpoint;
+        
+        // Update grid layout
+        this.updateGridLayout();
+        
+        console.log(`📱 Viewport: ${window.innerWidth}px, Mobile: ${this.isMobileView}`);
+    }
+
+    /**
+     * Update grid layout based on screen size
+     */
+    updateGridLayout() {
+        const chatGrid = document.querySelector('.chat-grid');
+        if (!chatGrid) return;
+        
+        const width = window.innerWidth;
+        let columns;
+        
+        // Determine columns based on breakpoints
+        if (width >= 1600) {
+            columns = 8; // Ultra-wide
+        } else if (width >= 1400) {
+            columns = 7; // Large desktop
+        } else if (width >= 1200) {
+            columns = 6; // Desktop
+        } else if (width >= 1024) {
+            columns = 4; // Medium desktop
+        } else if (width >= 768) {
+            columns = 3; // Tablet landscape
+        } else if (width >= 576) {
+            columns = 2; // Tablet portrait
+        } else {
+            columns = 1; // Mobile
+        }
+        
+        // Apply the grid layout
+        chatGrid.style.setProperty('--grid-columns', columns.toString());
+        
+        console.log(`🔧 Grid updated: ${columns} columns for ${width}px`);
+    }
+
+    /**
+     * Toggle sidebar (works for all screen sizes)
+     */
+    toggleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+            sidebar.classList.toggle('collapsed');
+        }
+    }
+
+    /**
+     * Collapse sidebar
+     */
+    collapseSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+            sidebar.classList.add('collapsed');
+        }
+    }
+
+    /**
+     * Expand sidebar
+     */
+    expandSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+            sidebar.classList.remove('collapsed');
+        }
+    }
+
+    /**
+     * Check if currently in mobile view
+     */
+    isMobile() {
+        return this.isMobileView;
+    }
+
+    /**
+     * Get current grid column count
+     */
+    getCurrentGridColumns() {
+        const chatGrid = document.querySelector('.chat-grid');
+        if (chatGrid) {
+            const columns = chatGrid.style.getPropertyValue('--grid-columns');
+            return parseInt(columns) || 3;
+        }
+        return 3;
+    }
+
+    /**
      * Set send button loading state
      */
     setSendButtonLoading(loading) {
         if (this.elements.sendButton) {
             this.elements.sendButton.disabled = loading;
             this.elements.sendButton.textContent = loading ? 'Sending...' : 'Send';
+            
+            // Update button state appearance
+            if (loading) {
+                this.elements.sendButton.classList.add('loading');
+            } else {
+                this.elements.sendButton.classList.remove('loading');
+                // Restore proper button state based on content
+                this.updateSendButtonState();
+            }
         }
     }
 
@@ -958,8 +1395,8 @@ class PuterUIManager {
         const hasImages = this.uploadedImages.length > 0;
         const hasContent = hasText || hasImages;
         
-        // Enable/disable send button based on content
-        if (!this.isProcessing) {
+        // Only update button state if not currently processing
+        if (!this.isProcessing && this.elements.sendButton) {
             this.elements.sendButton.disabled = !hasContent;
             
             // Update button appearance
@@ -1031,20 +1468,6 @@ class PuterUIManager {
             } else {
                 messages.scrollTop = messages.scrollHeight;
             }
-        }
-    }
-
-    setSendButtonLoading(isLoading) {
-        const btn = this.elements.sendButton;
-        if (!btn) return;
-        if (isLoading) {
-            btn.disabled = true;
-            btn.classList.add('loading');
-            btn.innerHTML = `<svg class="spinner" width="20" height="20" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5"></circle></svg>`;
-        } else {
-            btn.disabled = false;
-            btn.classList.remove('loading');
-            btn.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>`;
         }
     }
 

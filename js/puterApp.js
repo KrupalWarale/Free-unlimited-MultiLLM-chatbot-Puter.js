@@ -253,7 +253,7 @@ class PuterApp {
      * Show help dialog
      */
     showHelp() {
-        const modelCount = this.modelConfig ? this.modelConfig.getAllModels().length : 'many';
+        const modelCount = 35; // We have 35 models
         const helpContent = `
         <div style="max-width: 600px;">
             <h3>🤖 Puter AI Chatbot Help</h3>

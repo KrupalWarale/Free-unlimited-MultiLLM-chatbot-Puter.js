@@ -110,7 +110,7 @@ class PuterSingleChatManager {
     showWelcomeMessage() {
         this.elements.messagesContainer.innerHTML = `
             <div class="welcome-message">
-                <h3>💬 Single LLM Chat</h3>
+                <p>💬 Single LLM Chat</p>
                 <p>Select a model above to start chatting one-on-one with your chosen AI assistant.</p>
             </div>
         `;
@@ -125,8 +125,7 @@ class PuterSingleChatManager {
 
         this.elements.messagesContainer.innerHTML = `
             <div class="welcome-message">
-                <h3>🤖 ${model.name}</h3>
-                <p>You're now chatting with ${model.name}. Start typing your message below!</p>
+                <p>Ready to chat with ${model.name}</p>
             </div>
         `;
     }
@@ -298,9 +297,6 @@ class PuterSingleChatManager {
         messageDiv.className = 'single-message user';
         
         messageDiv.innerHTML = `
-            <div class="single-message-header">
-                <span>You</span>
-            </div>
             <div class="single-message-content">${this.formatContent(message)}</div>
         `;
         
@@ -312,16 +308,10 @@ class PuterSingleChatManager {
      * Display assistant message
      */
     displayAssistantMessage(content) {
-        const model = puterModelCapabilities.getModel(this.currentModel);
-        const modelName = model ? model.name : 'AI Assistant';
-        
         const messageDiv = document.createElement('div');
         messageDiv.className = 'single-message assistant';
         
         messageDiv.innerHTML = `
-            <div class="single-message-header">
-                <span class="model-badge">${modelName}</span>
-            </div>
             <div class="single-message-content">${this.formatContent(content)}</div>
         `;
         
