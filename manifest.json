@@ -1,0 +1,28 @@
+{
+    "name": "Puter AI Chatbot",
+    "short_name": "Puter AI",
+    "description": "AI-powered chatbot with vision and image generation capabilities",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#6366f1",
+    "theme_color": "#6366f1",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,%3Csvg width='192' height='192' viewBox='0 0 192 192' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='192' height='192' rx='32' fill='%236366f1'/%3E%3Ccircle cx='96' cy='96' r='24' fill='white'/%3E%3Cpath d='M96 48v96M48 96h96' stroke='white' stroke-width='8' stroke-linecap='round'/%3E%3C/svg%3E",
+            "sizes": "192x192",
+            "type": "image/svg+xml"
+        },
+        {
+            "src": "data:image/svg+xml,%3Csvg width='512' height='512' viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='512' height='512' rx='86' fill='%236366f1'/%3E%3Ccircle cx='256' cy='256' r='64' fill='white'/%3E%3Cpath d='M256 128v256M128 256h256' stroke='white' stroke-width='20' stroke-linecap='round'/%3E%3C/svg%3E",
+            "sizes": "512x512",
+            "type": "image/svg+xml"
+        }
+    ],
+    "categories": [
+        "productivity",
+        "utilities"
+    ],
+    "lang": "en",
+    "dir": "ltr"
+}
