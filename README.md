@@ -1,6 +1,10 @@
 # Puter Multi-LLM + Uni LLM AI Chatbot
 
 
+## Repository Overview
+
+![Repo stats](https://github-readme-stats.vercel.app/api/pin/?username=KrupalWarale&repo=Free-unlimited-MultiLLM-chatbot-Puter.js&theme=radical)
+![Activity Graph](https://activity-graph.herokuapp.com/graph?username=KrupalWarale&repo=Free-unlimited-MultiLLM-chatbot-Puter.js&theme=react-dark)
 
 
 
@@ -92,4 +96,5 @@ Since this is a client-side application, you can run it directly in your browser
 ## Made By Krupal 
 
 ![GitHub stats](https://github-readme-stats.vercel.app/api?username=KrupalWarale&show_icons=true&count_private=true&theme=radical)
+
 
