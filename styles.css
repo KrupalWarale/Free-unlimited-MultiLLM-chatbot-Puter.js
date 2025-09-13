@@ -2787,7 +2787,7 @@ input:checked + .toggle-slider:before {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding-left:20vw;
+    
     margin: 20px;
     border-radius: 16px;
 
@@ -2842,3 +2842,4 @@ input:checked + .toggle-slider:before {
     line-height: 1.6;
     font-weight: 400;
 }
+
