@@ -98,13 +98,16 @@ Since this is a client-side application, you can run it directly in your browser
 
 *   [**Puter.js**](https://puter.com/) - The core platform providing the AI capabilities and making this zero-backend project possible.
 
-## Made By Krupal 
+<div align="center">
+  <b>Made By Krupal</b>
+</div>
 
 
 
 <p align="center">
   <img src="https://github-readme-stats.vercel.app/api?username=KrupalWarale&show_icons=true&count_private=true&theme=radical" />
 </p>
+
 
 
 
