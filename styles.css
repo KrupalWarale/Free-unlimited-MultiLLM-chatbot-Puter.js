@@ -819,6 +819,7 @@ body[data-sidebar-collapsed="true"] .settings-sidebar.open {
 /* Mobile Portrait (up to 575px) - 1 column */
 @media (max-width: 575px) {
     .chat-grid {
+        width:80vw;
         padding:30px;
         --grid-columns: 1;
         gap: 8px;
