@@ -1,6 +1,6 @@
-<p align="center">
-  <strong>Puter Multi-LLM + Uni LLM AI Chatbot</strong>
-</p>
+<div align="center">
+  <h1><b>Puter Multi-LLM + Uni LLM AI Chatbot</b></h1>
+</div>
 
 
 
@@ -101,6 +101,7 @@ Since this is a client-side application, you can run it directly in your browser
 ## Made By Krupal 
 
 ![GitHub stats](https://github-readme-stats.vercel.app/api?username=KrupalWarale&show_icons=true&count_private=true&theme=radical)
+
 
 
 
