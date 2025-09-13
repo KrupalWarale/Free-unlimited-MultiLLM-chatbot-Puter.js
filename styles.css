@@ -2722,7 +2722,9 @@ input:checked + .toggle-slider:before {
 /* Mobile model selector optimization - Clean */
 @media (max-width: 767px) {
     .single-chat-header {
-        padding: 16px 20px;
+        border-radius: 30px;
+        padding: 12px 27px;
+        width: 80vw;
     }
     
     .model-selector {
@@ -2775,6 +2777,7 @@ input:checked + .toggle-slider:before {
 }
 
 .single-chat-messages {
+    width:70vw;
     flex: 1;
     padding: 20px;
     overflow-y: auto;
