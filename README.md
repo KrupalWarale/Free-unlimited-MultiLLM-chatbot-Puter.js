@@ -3,14 +3,15 @@
 
 
 
-![Repo stats](https://github-readme-stats.vercel.app/api/pin/?username=KrupalWarale&repo=Free-unlimited-MultiLLM-chatbot-Puter.js&theme=radical)
+<p align="center">
+  <img src="https://github-readme-stats.vercel.app/api/pin/?username=KrupalWarale&repo=Free-unlimited-MultiLLM-chatbot-Puter.js&theme=radical" />
+</p>
 
+<p align="center">
+  <img src="https://img.shields.io/github/stars/KrupalWarale/Free-unlimited-MultiLLM-chatbot-Puter.js?style=social" />
+  <img src="https://img.shields.io/github/forks/KrupalWarale/Free-unlimited-MultiLLM-chatbot-Puter.js?style=social" />
+</p>
 
-
-
-
-![GitHub stars](https://img.shields.io/github/stars/KrupalWarale/Free-unlimited-MultiLLM-chatbot-Puter.js?style=social)
-![GitHub forks](https://img.shields.io/github/forks/KrupalWarale/Free-unlimited-MultiLLM-chatbot-Puter.js?style=social)
 
 
 This repository contains a powerful, free, and unlimited multi-LLM chatbot built entirely with front-end technologies using **Puter.js**. Chat with over 35 of the world's leading AI models simultaneously, compare their responses in real-time, and switch seamlessly between a multi-model grid and a focused single-chat experience. No backend, no API keys, no setup required.
@@ -97,6 +98,7 @@ Since this is a client-side application, you can run it directly in your browser
 ## Made By Krupal 
 
 ![GitHub stats](https://github-readme-stats.vercel.app/api?username=KrupalWarale&show_icons=true&count_private=true&theme=radical)
+
 
 
 
