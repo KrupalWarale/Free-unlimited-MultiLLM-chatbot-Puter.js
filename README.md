@@ -24,7 +24,6 @@ This repository contains a powerful, free, and unlimited multi-LLM chatbot built
 *   **Massive Multi-LLM Comparison**: Chat with over 35 models at once in an "All-in-One" grid view.
 *   **Single Chat Mode**: Focus on a conversation with a single, selectable large language model.
 *   **Real-Time Streaming**: Watch responses from all models generate simultaneously.
-*   **Image Support**: Upload images for analysis with vision-capable models.
 *   **Customizable Parameters**: Adjust `Max Tokens` and `Temperature` for all models from the settings panel.
 *   **Model Management**: Enable or disable individual models in the grid from the settings panel.
 *   **Responsive Design**: A clean, modern UI that works seamlessly on desktop and mobile devices.
@@ -71,11 +70,10 @@ Since this is a client-side application, you can run it directly in your browser
 
 1.  **Select a Mode**: Use the left sidebar to switch between `All-in-One Chat` (grid view) and `Single LLM Chat`.
 2.  **Send a Message**: Type your prompt in the input area at the bottom. Use `Shift+Enter` for a new line. Click "Send" or press `Ctrl+Enter` to submit.
-3.  **Upload Images**: Click the file icon in the input area to select one or more images for vision-capable models.
-4.  **Adjust Settings**: Click the settings icon in the sidebar to open the settings panel. Here you can:
+3.  **Adjust Settings**: Click the settings icon in the sidebar to open the settings panel. Here you can:
     *   Adjust `Max Tokens` and `Temperature`.
     *   Toggle individual AI models on or off for the grid view.
-5.  **Toggle Sidebar**: On smaller screens, use the hamburger menu to expand or collapse the sidebar.
+4.  **Toggle Sidebar**: On smaller screens, use the hamburger menu to expand or collapse the sidebar.
 
 ## Project Structure
 
@@ -112,6 +110,7 @@ Since this is a client-side application, you can run it directly in your browser
 <p align="center">
   <img src="https://github-readme-stats.vercel.app/api?username=KrupalWarale&show_icons=true&count_private=true&theme=radical" />
 </p>
+
 
 
 
