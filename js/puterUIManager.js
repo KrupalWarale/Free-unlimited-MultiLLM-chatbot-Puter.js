@@ -29,6 +29,10 @@ class PuterUIManager {
 
         // Add property to track single chat container
         this.singleChatContainer = null;
+        
+        // Touch event properties for swipe gestures
+        this.touchStartX = 0;
+        this.touchEndX = 0;
     }
 
     /**
@@ -149,13 +153,13 @@ class PuterUIManager {
         chatGrid.innerHTML = '';
         this.chatWindows.clear();
 
-        // Calculate grid layout for 35 models - use 3 columns for optimal display
-        const modelCount = allModels.length;
-        const cols = 3; // Fixed layout for 35 models
+        // Initialize responsive grid layout
+        this.updateGridLayout();
         
-        // Set the grid layout with important to override CSS
-        chatGrid.style.setProperty('grid-template-columns', `repeat(${cols}, 1fr)`, 'important');
-        chatGrid.style.setProperty('grid-template-rows', 'auto', 'important');
+        // Force a grid refresh to ensure proper column layout
+        setTimeout(() => {
+            this.forceGridRefresh();
+        }, 100);
 
         // Create chat windows for all models
         allModels.forEach(modelId => {
@@ -234,8 +238,11 @@ class PuterUIManager {
         this.elements.sidebar = document.querySelector('.sidebar');
         
         // Setup mobile sidebar functionality
-        this.mobileBreakpoint = 576;
+        this.mobileBreakpoint = 575; // Changed from 576 to 575 to match CSS
         this.isMobileView = window.innerWidth <= this.mobileBreakpoint;
+        
+        // Initialize mobile state
+        this.initializeMobileState();
         
         // Bind mobile events
         this.bindMobileEvents();
@@ -938,13 +945,8 @@ class PuterUIManager {
         const chatGridContainer = document.querySelector('.chat-grid-container');
         
         if (chatGrid && chatGridContainer) {
-            // Calculate grid layout for 35 models - use 3 columns for optimal display
-            const modelCount = document.querySelectorAll('.chat-window').length;
-            const cols = 3; // Fixed layout for 35 models
-            
-            // Apply the calculated grid layout with important to override CSS
-            chatGrid.style.setProperty('grid-template-columns', `repeat(${cols}, 1fr)`, 'important');
-            chatGrid.style.setProperty('grid-template-rows', 'auto', 'important');
+            // Update grid layout based on current screen size
+            this.updateGridLayout();
             
             // Show all chat windows and reset their heights
             document.querySelectorAll('.chat-window').forEach(window => {
@@ -955,6 +957,11 @@ class PuterUIManager {
             
             // Enable scrolling
             chatGridContainer.style.overflowY = 'auto';
+            
+            // Force grid refresh to ensure proper layout
+            setTimeout(() => {
+                this.forceGridRefresh();
+            }, 50);
         }
     }
 
@@ -1077,26 +1084,176 @@ class PuterUIManager {
      * Bind mobile-specific event listeners
      */
     bindMobileEvents() {
-        // Mobile menu toggle button - works same as sidebar toggle
-        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-        const sidebar = document.querySelector('.sidebar');
-        
-        if (mobileMenuToggle) {
-            mobileMenuToggle.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.toggleSidebar();
-            });
-        }
-        
-        // Close sidebar when clicking on model items only on very small screens
+        // Auto-collapse sidebar on mobile when selecting model items
         this.elements.modelItems.forEach(item => {
             item.addEventListener('click', () => {
                 // Only auto-collapse on mobile when sidebar is expanded
-                if (window.innerWidth <= 575 && !sidebar?.classList.contains('collapsed')) {
-                    setTimeout(() => this.collapseSidebar(), 200);
+                if (window.innerWidth <= 575) {
+                    const sidebar = document.querySelector('.sidebar');
+                    if (sidebar && !sidebar.classList.contains('collapsed')) {
+                        setTimeout(() => this.collapseSidebar(), 200);
+                    }
                 }
             });
+        });
+        
+        // Add touch event handling for mobile sidebar overlay
+        this.setupMobileSidebarOverlay();
+        
+        // Prevent body scroll when sidebar is open on mobile
+        this.setupMobileScrollPrevention();
+        
+        // Handle viewport resize for keyboard
+        this.setupMobileViewportHandling();
+    }
+    
+    /**
+     * Setup mobile sidebar overlay interactions
+     */
+    setupMobileSidebarOverlay() {
+        // Add swipe to close sidebar
+        document.addEventListener('touchstart', (e) => {
+            this.touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+        
+        document.addEventListener('touchend', (e) => {
+            this.touchEndX = e.changedTouches[0].screenX;
+            this.handleSwipeGesture();
+        }, { passive: true });
+        
+        // Click outside sidebar to close on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 575) {
+                const sidebar = document.querySelector('.sidebar');
+                const isClickInsideSidebar = sidebar && sidebar.contains(e.target);
+                const isToggleButton = e.target.closest('#toggleSidebar');
+                
+                if (!isClickInsideSidebar && !isToggleButton && sidebar && !sidebar.classList.contains('collapsed')) {
+                    this.collapseSidebar();
+                }
+            }
+        });
+    }
+    
+    /**
+     * Handle swipe gestures for sidebar
+     */
+    handleSwipeGesture() {
+        const swipeThreshold = 50;
+        const swipeDistance = this.touchEndX - this.touchStartX;
+        
+        if (window.innerWidth <= 575) {
+            const sidebar = document.querySelector('.sidebar');
+            
+            // Swipe left to close sidebar
+            if (swipeDistance < -swipeThreshold && sidebar && !sidebar.classList.contains('collapsed')) {
+                this.collapseSidebar();
+            }
+            
+            // Swipe right to open sidebar (from left edge)
+            if (swipeDistance > swipeThreshold && this.touchStartX < 20 && sidebar && sidebar.classList.contains('collapsed')) {
+                this.expandSidebar();
+            }
+        }
+    }
+    
+    /**
+     * Setup mobile scroll prevention when sidebar is open
+     */
+    setupMobileScrollPrevention() {
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) return;
+        
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (window.innerWidth <= 575) {
+                        const isExpanded = !sidebar.classList.contains('collapsed');
+                        document.body.style.overflow = isExpanded ? 'hidden' : '';
+                    }
+                }
+            });
+        });
+        
+        observer.observe(sidebar, { attributes: true });
+    }
+    
+    /**
+     * Initialize mobile-specific state and setup
+     */
+    initializeMobileState() {
+        const sidebar = document.querySelector('.sidebar');
+        
+        if (this.isMobileView || window.innerWidth <= 768) {
+            // Auto-collapse sidebar on tablet view but allow manual control on mobile
+            if (sidebar && window.innerWidth <= 767 && window.innerWidth > 575) {
+                sidebar.classList.add('collapsed');
+            } else if (sidebar && window.innerWidth <= 575) {
+                // On mobile, start collapsed but allow toggle
+                sidebar.classList.add('collapsed');
+            }
+            
+            // Add mobile class to body for CSS targeting
+            document.body.classList.add('mobile-view');
+            
+            // Ensure proper viewport meta tag settings
+            this.ensureProperViewportMeta();
+        } else {
+            document.body.classList.remove('mobile-view');
+            
+            // Auto-expand sidebar on larger screens
+            if (sidebar && window.innerWidth > 1023) {
+                sidebar.classList.remove('collapsed');
+            }
+        }
+        
+        // Update sidebar data attribute
+        this.updateSidebarDataAttribute();
+    }
+    
+    /**
+     * Ensure proper viewport meta tag for mobile
+     */
+    ensureProperViewportMeta() {
+        let viewportMeta = document.querySelector('meta[name="viewport"]');
+        if (viewportMeta) {
+            viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+        }
+    }
+    
+    /**
+     * Setup mobile viewport handling for keyboard
+     */
+    setupMobileViewportHandling() {
+        let initialViewportHeight = window.innerHeight;
+        
+        window.addEventListener('resize', () => {
+            // Handle virtual keyboard on mobile
+            if (window.innerWidth <= 575) {
+                const currentHeight = window.innerHeight;
+                const heightDiff = initialViewportHeight - currentHeight;
+                
+                // Keyboard is likely open if height decreased significantly
+                if (heightDiff > 150) {
+                    document.body.classList.add('keyboard-open');
+                    // Adjust input area positioning when keyboard is open
+                    const inputArea = document.querySelector('.input-area');
+                    if (inputArea) {
+                        inputArea.style.bottom = '0px';
+                    }
+                } else {
+                    document.body.classList.remove('keyboard-open');
+                    const inputArea = document.querySelector('.input-area');
+                    if (inputArea) {
+                        inputArea.style.bottom = '0px';
+                    }
+                }
+            }
+        });
+        
+        // Store initial height
+        window.addEventListener('load', () => {
+            initialViewportHeight = window.innerHeight;
         });
     }
 
@@ -1131,10 +1288,29 @@ class PuterUIManager {
         const wasInMobileView = this.isMobileView;
         this.isMobileView = window.innerWidth <= this.mobileBreakpoint;
         
+        // Update mobile state if view changed
+        if (wasInMobileView !== this.isMobileView) {
+            this.initializeMobileState();
+        }
+        
+        // Auto-collapse sidebar when layout becomes 2 columns (tablet view)
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+            if (window.innerWidth <= 767 && window.innerWidth > 575) {
+                // Auto-collapse sidebar for tablet view
+                sidebar.classList.add('collapsed');
+            } else if (window.innerWidth > 1023) {
+                // Auto-expand sidebar on larger screens
+                sidebar.classList.remove('collapsed');
+            }
+            // Leave manual control for mobile (≤575px) and medium screens (768px-1023px)
+            
+            // Update sidebar data attribute whenever state changes
+            this.updateSidebarDataAttribute();
+        }
+        
         // Update grid layout
         this.updateGridLayout();
-        
-        console.log(`📱 Viewport: ${window.innerWidth}px, Mobile: ${this.isMobileView}`);
     }
 
     /**
@@ -1147,27 +1323,39 @@ class PuterUIManager {
         const width = window.innerWidth;
         let columns;
         
-        // Determine columns based on breakpoints
-        if (width >= 1600) {
-            columns = 8; // Ultra-wide
-        } else if (width >= 1400) {
-            columns = 7; // Large desktop
-        } else if (width >= 1200) {
-            columns = 6; // Desktop
-        } else if (width >= 1024) {
-            columns = 4; // Medium desktop
+        // Determine columns based on breakpoints - max 3 columns
+        if (width >= 1024) {
+            columns = 3; // Desktop and above - 3 columns max
         } else if (width >= 768) {
-            columns = 3; // Tablet landscape
+            columns = 2; // Tablet landscape - 2 columns
         } else if (width >= 576) {
-            columns = 2; // Tablet portrait
+            columns = 2; // Tablet portrait - 2 columns
         } else {
-            columns = 1; // Mobile
+            columns = 1; // Mobile - 1 column
         }
         
-        // Apply the grid layout
+        // Apply the grid layout with important to override any CSS
         chatGrid.style.setProperty('--grid-columns', columns.toString());
+        chatGrid.style.setProperty('grid-template-columns', `repeat(${columns}, 1fr)`, 'important');
         
-        console.log(`🔧 Grid updated: ${columns} columns for ${width}px`);
+        // Force a reflow to ensure changes take effect
+        chatGrid.offsetHeight;
+    }
+    
+    /**
+     * Force grid layout refresh
+     */
+    forceGridRefresh() {
+        const chatGrid = document.querySelector('.chat-grid');
+        if (chatGrid) {
+            // Temporarily hide and show to force reflow
+            chatGrid.style.display = 'none';
+            chatGrid.offsetHeight; // Force reflow
+            chatGrid.style.display = 'grid';
+            
+            // Update layout
+            this.updateGridLayout();
+        }
     }
 
     /**
@@ -1177,6 +1365,7 @@ class PuterUIManager {
         const sidebar = document.querySelector('.sidebar');
         if (sidebar) {
             sidebar.classList.toggle('collapsed');
+            this.updateSidebarDataAttribute();
         }
     }
 
@@ -1187,6 +1376,7 @@ class PuterUIManager {
         const sidebar = document.querySelector('.sidebar');
         if (sidebar) {
             sidebar.classList.add('collapsed');
+            this.updateSidebarDataAttribute();
         }
     }
 
@@ -1197,14 +1387,24 @@ class PuterUIManager {
         const sidebar = document.querySelector('.sidebar');
         if (sidebar) {
             sidebar.classList.remove('collapsed');
+            this.updateSidebarDataAttribute();
         }
+    }
+
+    /**
+     * Update body data attribute for sidebar state
+     */
+    updateSidebarDataAttribute() {
+        const sidebar = document.querySelector('.sidebar');
+        const isCollapsed = sidebar && sidebar.classList.contains('collapsed');
+        document.body.setAttribute('data-sidebar-collapsed', isCollapsed.toString());
     }
 
     /**
      * Check if currently in mobile view
      */
     isMobile() {
-        return this.isMobileView;
+        return this.isMobileView || window.innerWidth <= this.mobileBreakpoint;
     }
 
     /**
@@ -1703,13 +1903,6 @@ class PuterUIManager {
     getModelDisplayName(modelId) {
         const model = puterModelCapabilities.getModel(modelId);
         return model ? model.name : modelId;
-    }
-
-    /**
-     * Check if the device is mobile
-     */
-    isMobile() {
-        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
 }
 
