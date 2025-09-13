@@ -102,11 +102,11 @@ Since this is a client-side application, you can run it directly in your browser
 
 
 
-
 <p align="center">
-  <img src="[https://img.shields.io/github/stars/KrupalWarale/Free-unlimited-MultiLLM-chatbot-Puter.js?style=social](https://github-readme-stats.vercel.app/api?username=KrupalWarale&show_icons=true&count_private=true&theme=radical)" />
-  
+  <img src="https://img.shields.io/github/stars/KrupalWarale/Free-unlimited-MultiLLM-chatbot-Puter.js?style=social" />
 </p>
+
+
 
 
 
