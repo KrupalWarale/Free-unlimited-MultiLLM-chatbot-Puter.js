@@ -99,7 +99,9 @@ Since this is a client-side application, you can run it directly in your browser
   <br>
   <br>
   <br>
-  
+
+  <img width="1200" height="800" alt="{2143A960-51B3-459D-94C9-8A00DDD01758}" src="https://github.com/user-attachments/assets/4ba38a1e-1b62-4628-99b9-5771a3eaa1a4" />
+
 
 <div align="center">
   <b>Made By Krupal</b>
@@ -110,6 +112,8 @@ Since this is a client-side application, you can run it directly in your browser
 <p align="center">
   <img src="https://github-readme-stats.vercel.app/api?username=KrupalWarale&show_icons=true&count_private=true&theme=radical" />
 </p>
+
+
 
 
 
